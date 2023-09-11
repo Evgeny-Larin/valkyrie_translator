@@ -14,4 +14,4 @@
 
 Протестировал на 10+ различных сюжетах, все работает. В длинных текстах иногда проскакивает "потраченный" машинный перевод, но в целом суть происходящего ясна. Во вступлении текст может выходить за рамки экрана.
 
-Скачать можно здесь: https://github.com/Evgeny-Larin/ValkyrieTranslator/blob/main/Valkyrie%20Translator.exe  
+Скачать можно здесь: https://github.com/Evgeny-Larin/valkyrie_translator/releases/tag/v2  
