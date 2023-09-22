@@ -6,7 +6,7 @@ from shutil import move, rmtree
 import os
 import re
 
-#функция для удаления файла из zip архива https://stackoverflow.com/questions/4653768/overwriting-file-in-ziparchive
+# функция для удаления файла из zip архива https://stackoverflow.com/questions/4653768/overwriting-file-in-ziparchive
 def remove_from_zip(zipfname, *filenames):
     tempdir = mkdtemp()
     try:
@@ -37,6 +37,13 @@ def popup_select(the_list):
             window.close()
             return values['_LIST_'][0]
 
+# функция для замены подстроки по словарю
+def replacer(text, dictionary):
+        for word, replacement in dictionary.items():
+            text = text.replace(word, replacement)
+        return text
+
+
 def transform_file(path, loc_select):
         path_dir = '\\'.join(path.split('/')[:-1])  # это путь до папки, содержащей файл
         # открываем файл, читаем с помощью pandas
@@ -57,9 +64,10 @@ def transform_file(path, loc_select):
         # сначала заменятся большие операторы, потом маленькие, так не столкнемся с заменой маленького оператора внутри большого
         special_symb = sorted(list(special_symb), key=len, reverse = True)
         # присваиваем номер каждому системному {оператору}, сохраняем в словарь
-        special_symb = {k:'<'+str(v)+'>' for v, k in enumerate(special_symb)}
+        special_symb = {k:'<'+str(v+1)+'>' for v, k in enumerate(special_symb)}
+        special_symb[r'\n'] = '<'+str(0)+'>'
         # заменяем все вхождения системных операторов на их номер из словаря
-        df['text'].replace(special_symb, regex = True, inplace = True)
+        df['text'] = df['text'].apply(lambda x: replacer(x, special_symb))
        
         #сохраняем текст для перевода
         name = path.split('/')[-1].split('.')[-2] + ' TextForTranslate.xlsx'
@@ -69,40 +77,39 @@ def transform_file(path, loc_select):
         return df, special_symb
 
 def update_file(translated_df, df, special_symb):
-    #иногда переводчик добавляет лишние пробелы или неправильно распознает специальные символы - исправляем
+    # иногда переводчик добавляет лишние пробелы или неправильно распознает специальные символы - исправляем
     translated_df = translated_df.replace(to_replace = ' >', value = '>', regex = True)\
-                .replace(to_replace = '\\\п', value = r'\n', regex = True)\
-                .replace(to_replace = '< ', value = '<', regex = True)\
-                .replace(to_replace = '\ n', value = r'\n', regex = True)
+                .replace(to_replace = '< ', value = '<', regex = True)
     translated_df.rename(columns={translated_df.columns[0]:'text'}, inplace=True)
  
 
-    #слепляем столбец триггеров и столбец с переведенным текстом
+    # слепляем столбец триггеров и столбец с переведенным текстом
     translated_df = df.merge(translated_df,
                         left_index=True,
                         right_index=True) 
     translated_df = translated_df[[1, 'text_y']]
     translated_df.rename(columns={'text_y':'text'}, inplace=True)
 
-    #создаем инвертированный словарь и заменяем порядковые номера на специальные значения
-    special_symb = dict(zip(special_symb.values(), special_symb.keys()))
     translated_df.loc[0, translated_df.columns[1]] = 'Russian'
-    translated_df['text'] = translated_df['text'].replace(special_symb, regex=True)
+
+    # создаем инвертированный словарь и заменяем порядковые номера на специальные значения
+    special_symb = dict(zip(special_symb.values(), special_symb.keys()))
+    translated_df['text'] = translated_df['text'].apply(lambda x: replacer(x, special_symb))
     translated_df['text'] = translated_df['text'].apply(lambda x: x.strip() if isinstance(x, str) else x)
     return translated_df
 
 def load_to_zip(translated_df, archive):
-    #добавляем файл в архив с сюжетом
+    # добавляем файл в архив с сюжетом
     translated_df.to_csv('Localization.Russian.txt', sep = ',', index = False, header = False)
     archive.write('Localization.Russian.txt')
     os.remove('Localization.Russian.txt')
     
-    #извлекаем файл quest.ini и удаляем его в архиве сюжета
+    # извлекаем файл quest.ini и удаляем его в архиве сюжета
     archive.extract('quest.ini')
     archive.close()
-    remove_from_zip(fr'{path}', 'quest.ini')   
+    remove_from_zip(fr'{path}', 'quest.ini')
     
-    #редактируем файл quest.ini и добавляем в архив с сюжетом
+    # редактируем файл quest.ini и добавляем в архив с сюжетом
     file = open('quest.ini', 'r')
     pozition = file.readlines().index('[QuestText]\n')+1
     file = open('quest.ini', 'r')
@@ -164,7 +171,7 @@ while True:
         elif file_translated == None:
             break
         else:
-            #считываем переведенный файл
+            # считываем переведенный файл
             translated_df = pd.read_excel(fr'{file_translated}')
             if translated_df.columns[-1] == 'text':
                 sg.Popup('Файл не переведен!')
