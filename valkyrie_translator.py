@@ -71,21 +71,24 @@ def transform_file(path, loc_select):
 def update_file(translated_df, df, special_symb):
     #иногда переводчик добавляет лишние пробелы или неправильно распознает специальные символы - исправляем
     translated_df = translated_df.replace(to_replace = ' >', value = '>', regex = True)\
-                .replace(to_replace = '\\\п', value = '\\n', regex = True)
+                .replace(to_replace = '\\\п', value = r'\n', regex = True)\
+                .replace(to_replace = '< ', value = '<', regex = True)\
+                .replace(to_replace = '\ n', value = r'\n', regex = True)
+    translated_df.rename(columns={translated_df.columns[0]:'text'}, inplace=True)
+ 
 
     #слепляем столбец триггеров и столбец с переведенным текстом
     translated_df = df.merge(translated_df,
                         left_index=True,
                         right_index=True) 
-    translated_df = translated_df[[1, 'текст']]      
-    translated_df.rename(columns = {'текст':'text'}, inplace = True)
-
+    translated_df = translated_df[[1, 'text_y']]
+    translated_df.rename(columns={'text_y':'text'}, inplace=True)
 
     #создаем инвертированный словарь и заменяем порядковые номера на специальные значения
     special_symb = dict(zip(special_symb.values(), special_symb.keys()))
-    translated_df['text'] = translated_df['text'].replace(special_symb, regex=True)\
-                                        .replace('Английский', 'Russian', regex = True)
-    translated_df['text'] = translated_df['text'].str.strip()
+    translated_df.loc[0, translated_df.columns[1]] = 'Russian'
+    translated_df['text'] = translated_df['text'].replace(special_symb, regex=True)
+    translated_df['text'] = translated_df['text'].apply(lambda x: x.strip() if isinstance(x, str) else x)
     return translated_df
 
 def load_to_zip(translated_df, archive):
